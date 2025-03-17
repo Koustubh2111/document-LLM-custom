@@ -1,4 +1,3 @@
-#%%
 from preprocessing import DataPreprocessor
 from embedding import EmbeddingModel
 from elasticsearch_idx import ElasticsearchVectorStore
@@ -11,7 +10,6 @@ sample_data = [
               ]
 
 
-#%%
 
 preprocessor = DataPreprocessor(chunk_size=512)
 print(f"Sample Data : {sample_data}")
@@ -22,7 +20,6 @@ print(f"Preprocessed summaries : {preprocessed_summary}")
 chunks = [preprocessor.split_text_into_chunks(p) for p in preprocessed_summary]
 print(f"Chunks : {chunks}")
 
-#%%
 
 for i, chunk in enumerate(chunks):
     print(f"    Preprocessing chunk : {chunk}")
@@ -34,7 +31,7 @@ for i, chunk in enumerate(chunks):
     sample_data[i]['embedding'] = embedding
 
     
-# %%
+
 """
 docker run -d --name elasticsearch -e 
 "discovery.type=single-node" -e "xpack.security.enabled=false" #make this true with password
@@ -45,7 +42,7 @@ es_url = "http://localhost:9200"
 index_name = "test_index"
 
 elastic = ElasticsearchVectorStore(es_url, index_name)
-# %%
+
 #Elastic search takes only JSON serializable data, a pytorch tensor cannot be sent, converted to list
 for i, doc in enumerate(sample_data):
     elastic.insert_document(
@@ -57,15 +54,14 @@ for i, doc in enumerate(sample_data):
         num_reviews=10,\
         embedding=doc['embedding'].tolist() if isinstance(doc['embedding'], torch.Tensor) else doc['embedding']
     )
-# %%
 
 search = ESSearch(es_url, index_name)
 
-# %%
+
 query = "i want a movie that is an expansive fantasy"
 query_embeddings = e.get_embedding(query)
 
-# %%
-search.search(query=query) #failed on using fizzy logic, fix later
+
+search.search(query=query) #failed on using fuzzy logic, fix later
 search.semantic_search(query_embeddings.tolist()) #worked
 
