@@ -1,0 +1,5 @@
+boto3==1.37.14
+elasticsearch==8.17.2
+pandas==2.2.3
+torch==2.6.0
+transformers==4.49.0
