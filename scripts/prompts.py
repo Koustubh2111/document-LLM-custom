@@ -1,4 +1,3 @@
-#%%
 from transformers import LlamaTokenizer, LlamaForCausalLM
 import sys
 import os
@@ -28,7 +27,7 @@ class AnswerGenerator:
         response = ollama.chat(model=self.model_name, messages=[{"role": "user", "content": prompt}])
         print(response['message']['content'])
     
-#%%
+
 if __name__ == "__main__":
 
     #1. Get docs from elastic search
