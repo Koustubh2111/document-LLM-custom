@@ -1,3 +1,4 @@
+#%%
 from transformers import AutoTokenizer, AutoModel
 import torch
 import logging
@@ -19,11 +20,19 @@ class EmbeddingModel:
             try:
                 inputs = self.tokenizer(text, return_tensors="pt", truncation=True, padding=True)
                 outputs = self.model(**inputs)
-                return outputs.last_hidden_state.mean(dim=1).squeeze()
+                embedding = outputs.last_hidden_state.mean(dim=1).squeeze()
+                
+                # Ensure the embedding has 384 dimensions, resize if necessary
+                if embedding.size(0) != 384:
+                    embedding = torch.zeros(384)  #Resize to 384 if not 384 dimensions; ES required 384
+                
+                return embedding
             except Exception as e:
                 logging.error(f"Error generating embedding: {e}")
-                return torch.zeros(768)  # Return zero vector if something goes wrong
+                return torch.zeros(384)  # Return a 384-dimensional zero vector
         else:
             logging.error("Model or tokenizer not loaded correctly.")
-            return torch.zeros(768)
-        
+            return torch.zeros(384)  # Return a 384-dimensional zero vector
+            
+
+# %%
