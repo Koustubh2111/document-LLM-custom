@@ -43,8 +43,3 @@ if __name__ == "__main__":
     a = AnswerGenerator()
     a.generate_answer(prompt=prompt)
 
-    
-
-
-
-# %%
