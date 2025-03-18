@@ -1,70 +1,57 @@
+import numpy as np
 from elasticsearch import Elasticsearch
-import logging
+import sys
+import os 
 
-class ESSearch:
-    def __init__(self, es_host: str, index_name: str):
-        """
-        Initialize the Elasticsearch search class.
+
+from indexing.embedding import EmbeddingModel
+
+class ElasticsearchRetriever:
+    def __init__(self, es_host='localhost', es_port=9200, es_scheme='http'):
+        # Specify the scheme explicitly (http or https)
+        self.es = Elasticsearch([{'host': es_host, 'port': es_port, 'scheme': es_scheme}])
+
+    def vector_search(self, query_text: str, index_name: str, top_k=5):
+        # Get the embedding for the query text
+        query_embedding = self.get_embedding(query_text)
         
-        :param es_host: Elasticsearch host URL
-        :param index_name: Name of the Elasticsearch index
-        """
-        self.es = Elasticsearch(es_host)
-        self.index_name = index_name
+        # Convert the embedding to a list for Elasticsearch query
+        query_embedding_list = query_embedding.cpu().detach().numpy().tolist() #move to cpu, detach from comp grap
 
-    def search(self, query: str, fields=None, top_n: int = 10):
-        """
-        Search for documents in Elasticsearch.
-
-        :param query: Search query string.
-        :param fields: List of fields to search in (default: all relevant fields).
-        :param top_n: Number of results to return.
-        :return: List of search results.
-        """
-        if fields is None:
-            fields = ["summary", "title", "author", "genre", "rating"]
-
-        search_query = {
-            "size": top_n,
+        # Create the query body for Elasticsearch vector search
+        #Defining a custom cosine similarity script score as script_score for matching with all documents
+        body = {
             "query": {
-                "multi_match": {
-                    "query": query,
-                    "fields": fields,
-                    "fuzziness": "AUTO"  # Allows typo tolerance in searches
-                }
-            }
-        }
-
-        try:
-            response = self.es.search(index=self.index_name, body=search_query)
-            return [hit["_source"] for hit in response["hits"]["hits"]]
-        except Exception as e:
-            logging.error(f"Search failed: {e}")
-            return []
-
-    def semantic_search(self, embedding: list, top_n: int = 10):
-        """
-        Perform semantic search using vector similarity.
-
-        :param embedding: Query embedding (list of floats).
-        :param top_n: Number of top results to return.
-        :return: List of search results.
-        """
-        try:
-            search_query = {
-                "size": top_n,
-                "query": {
-                    "script_score": {
-                        "query": {"match_all": {}},
-                        "script": {
-                            "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                            "params": {"query_vector": embedding}
+                "script_score": {
+                    "query": {
+                        "match_all": {}
+                    },
+                    "script": {
+                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                        "params": {
+                            "query_vector": query_embedding_list
                         }
                     }
                 }
-            }
-            response = self.es.search(index=self.index_name, body=search_query)
-            return [hit["_source"] for hit in response["hits"]["hits"]]
-        except Exception as e:
-            logging.error(f"Semantic search failed: {e}")
-            return []
+            },
+            "_source": ["name", "author", "url", "genres", "star_rating", "first_published", "kindle_price", "summary_chunk"],  # Specify which fields to return
+            "size": top_k  # Number of top documents to return
+        }
+
+        # Perform the search
+        response = self.es.search(index=index_name, body=body)
+        
+        # Extract and return the top-k documents
+        documents = [hit["_source"] for hit in response["hits"]["hits"]]
+        return documents
+
+    def get_embedding(self, text: str):
+        embed = EmbeddingModel()
+        return embed.get_embedding(text)
+    
+
+if __name__ == "__main__":
+
+    search = ElasticsearchRetriever()
+    query_text = "Find me books that have a summary like a murder mystery in a small town. The protagonist must be female."
+    docs = search.vector_search(query_text, 'goodreads', 10)
