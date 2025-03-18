@@ -10,7 +10,6 @@ sample_data = [
               ]
 
 
-
 preprocessor = DataPreprocessor(chunk_size=512)
 print(f"Sample Data : {sample_data}")
 
