@@ -11,7 +11,7 @@ class ElasticsearchRetriever:
         # Specify the scheme explicitly (http or https)
         self.es = Elasticsearch([{'host': es_host, 'port': es_port, 'scheme': es_scheme}])
 
-    def vector_search(self, query_text: str, index_name: str, top_k=5):
+    def vector_search(self, query_text: str, index_name: str, semantic=True, top_k=5):
         # Get the embedding for the query text
         query_embedding = self.get_embedding(query_text)
         
@@ -20,23 +20,36 @@ class ElasticsearchRetriever:
 
         # Create the query body for Elasticsearch vector search
         #Defining a custom cosine similarity script score as script_score for matching with all documents
-        body = {
-            "query": {
-                "script_score": {
-                    "query": {
-                        "match_all": {}
-                    },
-                    "script": {
-                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                        "params": {
-                            "query_vector": query_embedding_list
+        if semantic:
+            body = {
+                        "query": {
+                            "knn": {
+                                "field": "embedding",  # The field storing the vectors
+                                "query_vector": query_embedding_list,  # Query vector from the user input
+                                "k": top_k  # Return top-k results
+                            }
+                        },
+                        "_source": ["name", "author", "url", "genres", "star_rating", "first_published", "kindle_price", "summary_chunk"],  # Fields to return
+                        "size": top_k  # Number of top documents to return
+                    }
+        else:
+            body = {
+                "query": {
+                    "script_score": {
+                        "query": {
+                            "match_all": {}
+                        },
+                        "script": {
+                            "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                            "params": {
+                                "query_vector": query_embedding_list
+                            }
                         }
                     }
-                }
-            },
-            "_source": ["name", "author", "url", "genres", "star_rating", "first_published", "kindle_price", "summary_chunk"],  # Specify which fields to return
-            "size": top_k  # Number of top documents to return
-        }
+                },
+                "_source": ["name", "author", "url", "genres", "star_rating", "first_published", "kindle_price", "summary_chunk"],  # Specify which fields to return
+                "size": top_k  # Number of top documents to return
+            }
 
         # Perform the search
         response = self.es.search(index=index_name, body=body)
