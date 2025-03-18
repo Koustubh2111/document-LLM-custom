@@ -5,15 +5,18 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError, Cli
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from .env file
-load_dotenv("./.env")
+
 
 
 class S3DataFetcher:
-    def __init__(self):
+    def __init__(self, env_path = './.env'):
         """
         Initialize S3DataFetcher with S3 client using environment variables.
         """
+        # Load environment variables from .env file
+        load_dotenv(env_path)
+
+
         # Load environment variables
         self.bucket_name = os.getenv("S3_BUCKET_NAME")
         self.file_key = os.getenv("S3_PARQUET_FILE_PATH")
